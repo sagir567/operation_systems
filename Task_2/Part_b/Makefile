@@ -2,7 +2,7 @@ FLAGS = -Wall -g
 CC = gcc
 
 
-all:  codecA.so encode  
+all:  codecA.so encode  codecB.so decode
 
 
 codecB.o: codecB.c 

@@ -1,20 +1,21 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#define _GNU_SOURCE
+#include <stdbool.h>
 
 #include <dlfcn.h>
 
 int main(int argc, char *argv[]){
-    while(argc!=3){
+    if(argc!=3){
         printf("encode/decode <codec> <message>");
     }
     int size = strlen(argv[2]);
     printf("size:%d\n",size);
-    char data[size];
+    char data[size+1];
     strcpy(data,argv[2]);
     char *codec = argv[1];
-    int flag =(strcmp(argv[0],"decode"))?0:1;
+
+
 
     if(strcmp(codec,"codecA")==0){
         void (*library);
@@ -24,7 +25,7 @@ int main(int argc, char *argv[]){
     
         if(!library){
         perror("ERROR:dynamic library init failed\n");
-        return 1;
+        return 0;
         }
         method = (void (*)(char[], int))dlsym(library,"codecA");
     
@@ -36,6 +37,24 @@ int main(int argc, char *argv[]){
         method(data,size);
         printf("%s\n",data);
         dlclose (library);
+    }
+    if(strcmp(codec,"codecB")==0){
+
+        void (*library);
+        void(*method)(bool,char[],int);
+        library= dlopen("./codecB.so",RTLD_LAZY);
+        if(!library){
+            perror("ERROR:dynamic library init failed\n");
+            return -1;
+        }
+        method = (void (*)(bool ,char[], int))dlsym(library,"codecB");
+        if(!method){
+            perror("ERROR:method linker failure!\n");
+            dlclose(library);
+            return 1;
+        }
+        method(true,data,size);
+        printf("data:%s\n",data);
     }
 
 
