@@ -61,6 +61,7 @@ php
 
     Run the decoding program:
 
+
 php
 
 ./decode <codec> <message>
