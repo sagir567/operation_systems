@@ -7,10 +7,14 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <unistd.h>
-#include <sys/types.h>
 #include <poll.h>
+#include <netdb.h>
+#include <sys/un.h>
+
+
 #define SIZE 1024 * 1024 * 100
-#define PATH "sample.txt"
+#define UNIX_PATH "sample.txt"
+#define MAX_SOCKETS 6
 
 bool isServer;
 bool isClient;
@@ -88,6 +92,7 @@ int main(int argc, char *argv[])
 
     if (isServer)
     {
+        struct pollfd fds[MAX_SOCKETS];
         int PORT =atoi(argv[2]); // if were in the server we know that the port number should be on  argv[2]
         // Create and bind all the sockets
         struct sockaddr_in addr_in;
@@ -101,6 +106,7 @@ int main(int argc, char *argv[])
         addr_in6.sin6_addr = in6addr_any;
 
         struct sockaddr_un addr_un;
+
         addr_un.sun_family = AF_UNIX;
         strcpy(addr_un.sun_path, UNIX_PATH);
 
@@ -115,11 +121,13 @@ int main(int argc, char *argv[])
         for (int i = 0; i < MAX_SOCKETS; i++)
         {
             fds[i].events = POLLIN;
+               
         }
 
         // Poll the sockets
         while (1)
         {
+            
             int n = poll(fds, MAX_SOCKETS, -1);
             if (n < 0)
             {
@@ -130,8 +138,10 @@ int main(int argc, char *argv[])
             // Handle the sockets that have data to read
             for (int i = 0; i < MAX_SOCKETS; i++)
             {
+              
                 if (fds[i].revents & POLLIN)
                 {
+                   
                     // Handle incoming data on fds[i].fd
                 }
             }

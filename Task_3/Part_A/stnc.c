@@ -64,7 +64,7 @@ int main(int argc, char *argv[]) {
     }
 
 
- ssaf
+
     if (fork() == 0) { // this child print income message
         socketHandler(soket);
     } else { // this father sends messages
