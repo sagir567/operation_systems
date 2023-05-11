@@ -1,0 +1,9 @@
+# ninja log v5
+32	70	1682193257632081328	CMakeFiles/opertaion_systems.dir/Task_2/Part_a/copy.c.o	e37de35684ca42f8
+0	19	1682955185510561749	build.ninja	427526725df21fbe
+0	30	1682193257592080908	CMakeFiles/opertaion_systems.dir/Task_2/Part_a/app.c.o	da2c160f72f8c45f
+1	22	1682193282216343642	CMakeFiles/opertaion_systems.dir/Task_2/Part_b/codecA.c.o	31c05016e85d05ca
+1	32	1682193257592080908	CMakeFiles/opertaion_systems.dir/Task_2/Part_a/cmp.c.o	1fbd75f0cab675a2
+30	67	1682193257628081286	CMakeFiles/opertaion_systems.dir/Task_2/brimer/encode(1).c.o	cef6c21f7bb8c273
+1	22	1682193282220343685	CMakeFiles/opertaion_systems.dir/Task_2/Part_b/codecB.c.o	3e9ee6674a0d0b7b
+1	28	1682193257588080866	CMakeFiles/opertaion_systems.dir/Task_2/Part_a/cobrimer.c.o	2396b1e0f52b3f6a
