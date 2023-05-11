@@ -7,65 +7,14 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <sys/types.h>
+
+
 
 #define SIZE 1024*1024*100
 #define PATH "sample.txt"
 
 //--------------------------------------------
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <fcntl.h>
-#include <sys/stat.h>
-#include <unistd.h>
-
-#define BUFSIZE 1024
-
-int main(int argc, char *argv[])
-{
-    if (argc < 3) {
-        fprintf(stderr, "Usage: %s <input_file> <fifo>\n", argv[0]);
-        exit(EXIT_FAILURE);
-    }
-
-    char *input_file = argv[1];
-    char *fifo_name = argv[2];
-
-    // open the input file for reading
-    int input_fd = open(input_file, O_RDONLY);
-    if (input_fd == -1) {
-        perror("open");
-        exit(EXIT_FAILURE);
-    }
-
-    // open the FIFO for writing
-    int fifo_fd = open(fifo_name, O_WRONLY);
-    if (fifo_fd == -1) {
-        perror("open");
-        exit(EXIT_FAILURE);
-    }
-
-    // read the input file and write it to the FIFO
-    char buf[BUFSIZE];
-    ssize_t nbytes;
-    while ((nbytes = read(input_fd, buf, BUFSIZE)) > 0) {
-        if (write(fifo_fd, buf, nbytes) == -1) {
-            perror("write");
-            exit(EXIT_FAILURE);
-        }
-    }
-
-    if (nbytes == -1) {
-        perror("read");
-        exit(EXIT_FAILURE);
-    }
-
-    // close the input file and FIFO
-    close(input_fd);
-    close(fifo_fd);
-
-    return 0;
-}
 
 //--------------------------------------------
 bool isServer;
