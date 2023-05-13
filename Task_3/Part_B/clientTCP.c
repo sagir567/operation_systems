@@ -7,13 +7,8 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <unistd.h>
-#include <poll.h>
-#include <netdb.h>
-#include <sys/un.h>
 #include <arpa/inet.h>
 #include <fcntl.h>
-#include <sys/mman.h>   
-#include <sys/stat.h>  
 
 
 // DEFINES
@@ -34,7 +29,12 @@ int sendIPv4(int PORT, char *IP)
         perror("sendIPv4: faild to connect socket");
         return -1;
     }
-    serverAdrres.sin_addr.s_addr = inet_addr(IP);
+    sif (inet_pton(AF_INET, IP, &serverAdrres.sin_addr) <= 0) {
+    perror("sendIPv4:inet_pton general failure");
+    return -1;
+}
+   
+
     serverAdrres.sin_family = AF_INET;
     serverAdrres.sin_port = htons(PORT);
     printf("before connect\n");

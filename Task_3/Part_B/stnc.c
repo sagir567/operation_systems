@@ -215,7 +215,7 @@ int main(int argc, char *argv[])
                 perror("poll");
                 exit(1);
             }
-            
+                
             // Handle the sockets that have data to read
             for (int i = 0; i < MAX_SOCKETS; i++)
             {
