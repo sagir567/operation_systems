@@ -1,6 +1,8 @@
 {
     "files.associations": {
         "dlfcn.h": "c",
-        "socket.h": "c"
+        "socket.h": "c",
+        "unistd.h": "c",
+        "errno.h": "c"
     }
 }
