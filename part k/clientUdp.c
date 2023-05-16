@@ -1619,7 +1619,7 @@ int main(int argc, char *argv[]) {
 				{
 					server_performance(argv[2], true);
 					break;
-				}
+				}1
 
 				print_usage(argv[0]);
 				return 1;

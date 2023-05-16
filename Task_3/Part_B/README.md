@@ -34,7 +34,7 @@ This project showcases different aspects of network communication, including cli
 
 1. Clone the repository: `git clone https://github.com/your/repo.git`
 2. Change to the project directory: `cd project-directory`
-3. Compile the code: `gcc -o stnc main.c -lssl -lcrypto`
+3. Compile the code: `gcc -o stnc stnc.c -lssl -lcrypt`
 4. Run the executable: `./stnc`
 
 ## Usage

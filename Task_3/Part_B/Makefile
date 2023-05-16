@@ -1,14 +1,11 @@
-FLAGS = -Wall -g
-CC = gcc
+.PHONY: all default clean
 
 all: stnc
 
-stnc.o: stnc.c clientTCP.c
-	$(CC) $(FLAGS) -c stnc.c 
+default: all
 
-stnc: stnc.o
-	$(CC) $(FLAGS) -o stnc stnc.o
-
-.PHONY: clean
+stnc: stnc.c
+	gcc -o $@ $^ -lcrypto
+	
 clean:
-	rm -f *.o *.a *.so stnc
+	rm -f stnc

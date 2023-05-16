@@ -3,6 +3,7 @@
         "dlfcn.h": "c",
         "socket.h": "c",
         "unistd.h": "c",
-        "errno.h": "c"
+        "errno.h": "c",
+        "stdlib.h": "c"
     }
 }

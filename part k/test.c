@@ -1,7 +1,25 @@
 
-#include "chat.c"
+
+#include <string.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <sys/un.h>
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <sys/time.h>
+#include <time.h>
+#include <openssl/evp.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdbool.h>
+#include <arpa/inet.h>
+#include <netinet/in.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <poll.h>
 #if !defined(_XOPEN_SOURCE) && !defined(_POSIX_C_SOURCE)
-#if __STDC_VERSION__ >= 199901L
+#if _STDC_VERSION_ >= 199901L
 #define _XOPEN_SOURCE 600
 #else
 #define _XOPEN_SOURCE 500
@@ -45,7 +63,97 @@ void printUsage()
            "\t\tpipe <file>\n");
 }
 
+void clientChat(const char *ip, const char *port)
+{
+    struct sockaddr_in server_addr;
+    int clientSocket;
+    char buffer[BUFFER_SIZE];
 
+    clientSocket = socket(AF_INET, SOCK_STREAM, 0);
+
+    if (clientSocket < 0)
+    {
+        perror("clientChat ERROR:socket");
+        exit(1);
+    }
+
+    memset(&server_addr, 0, sizeof(server_addr));
+
+    server_addr.sin_family = AF_INET;
+    server_addr.sin_port = htons(atoi(port));
+    if (inet_pton(AF_INET, ip, &(server_addr.sin_addr)) <= 0)
+    {
+        perror("clientChat ERROR:inet_pton");
+        exit(1);
+    }
+
+    if (connect(clientSocket, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0)
+    {
+        perror("clientChat ERROR:connect");
+        exit(1);
+    }
+
+    struct pollfd fds[2];
+    fds[0].fd = clientSocket;
+    fds[0].events = POLLIN;
+
+    fds[1].fd = STDIN_FILENO;
+    fds[1].events = POLLIN;
+
+    while (1)
+    {
+        int events = poll(fds, 2, -1);
+
+        if (events < 0)
+        {
+            perror("clientChat ERROR:poll");
+            exit(1);
+        }
+
+        if (fds[0].revents & POLLIN)
+        {
+            ssize_t recv_len = recv(clientSocket, buffer, sizeof(buffer) - 1, 0);
+
+            if (recv_len < 0)
+            {
+                perror("clientChat ERROR:recv");
+                exit(1);
+            }
+            else if (recv_len == 0)
+            {
+                printf("disconnecting from server...!!\n");
+                break;
+            }
+
+            buffer[recv_len] = '\0';
+            printf("Server: %s\n", buffer);
+        }
+
+        if (fds[1].revents & POLLIN)
+        {
+            if (fgets(buffer, sizeof(buffer), stdin) == NULL)
+                break;
+
+            size_t len = strlen(buffer);
+            if (len > 0 && buffer[len - 1] == '\n')
+                buffer[len - 1] = '\0';
+
+            if (send(clientSocket, buffer, strlen(buffer), 0) < 0)
+            {
+                perror("send");
+                exit(1);
+            }
+        }
+
+        if (fds[0].revents & (POLLHUP | POLLERR))
+        {
+            printf("Server disconnected!!\n");
+            break;
+        }
+    }
+
+    close(clientSocket);
+}
 
 char *checkSumMd5(char *data)
 {
@@ -72,7 +180,127 @@ char *checkSumMd5(char *data)
     OPENSSL_free(md5_digest);
     return checksum;
 }
+void serverChat(const char *port)
+{
+    struct sockaddr_in server_addr, client_addr;
+    int serverSocket, clientSocket, reuse = 1;
+    socklen_t client_len = sizeof(client_addr);
+    char buffer[BUFFER_SIZE];
 
+    if ((serverSocket = socket(AF_INET, SOCK_STREAM, 0)) == -1)
+    {
+        perror("socket");
+        exit(1);
+    }
+
+    if (setsockopt(serverSocket, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse)) < 0)
+    {
+        perror("SERVER CHAT ERROR:setsockopt");
+        exit(1);
+    }
+
+    memset(&server_addr, 0, sizeof(server_addr));
+    memset(&client_addr, 0, sizeof(client_addr));
+
+    server_addr.sin_family = AF_INET;
+    server_addr.sin_port = htons(atoi(port));
+    server_addr.sin_addr.s_addr = INADDR_ANY;
+
+    if (bind(serverSocket, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0)
+    {
+        perror("SERVER CHAT ERROR:bind");
+        exit(1);
+    }
+
+    if (listen(serverSocket, 5) < 0)
+    {
+        perror("SERVER CHAT ERROR:listen");
+        exit(1);
+    }
+
+    while (1)
+    {
+
+        if ((clientSocket = accept(serverSocket, (struct sockaddr *)&client_addr, &client_len)) < 0)
+        {
+            perror("SERVER CHAT ERROR:accept");
+            exit(1);
+        }
+        else
+        {
+            printf("connection esteblished \n");
+        }
+
+        struct pollfd fds[2];
+        fds[0].fd = clientSocket;
+        fds[0].events = POLLIN;
+
+        fds[1].fd = STDIN_FILENO;
+        fds[1].events = POLLIN;
+
+        while (1)
+        {
+            int events;
+
+            if ((events = poll(fds, 2, -1)) < 0)
+            {
+                perror("SERVER CHAT ERROR:poll");
+                exit(1);
+            }
+
+            if (fds[0].revents & POLLIN)
+            {
+                int num_of_bytes;
+
+                if ((num_of_bytes = recv(clientSocket, buffer, sizeof(buffer), 0)) < 0)
+                {
+                    perror("SERVER CHAT ERROR:recv");
+                    exit(1);
+                }
+                else if (num_of_bytes == 0)
+                {
+                    printf("Client disconnected\n");
+                    break;
+                }
+
+                printf("Client: %s\n", buffer);
+
+                if (strcmp(buffer, "exit") == 0)
+                {
+                    printf("terminating chat...\n");
+                    close(clientSocket);
+                    close(serverSocket);
+                    return;
+                }
+            }
+
+            if (fds[1].revents & POLLIN)
+            {
+                fgets(buffer, sizeof(buffer), stdin);
+
+                buffer[strlen(buffer) - 1] = '\0';
+
+                if (send(clientSocket, buffer, strlen(buffer), 0) < 0)
+                {
+                    perror("SERVER CHAT ERROR:send");
+                    exit(1);
+                }
+            }
+
+            if (fds[0].revents & POLLHUP)
+            {
+                printf("Connection closed by client\n");
+                break;
+            }
+
+            memset(buffer, 0, sizeof(buffer));
+        }
+
+        close(clientSocket);
+    }
+
+    close(serverSocket);
+}
 
 void clientPerformance(const char *ip, const char *port, const char *comunnicationType, const char *param)
 {
@@ -616,19 +844,19 @@ void serverPerformance(const char *port, bool quiet)
 
     if (setsockopt(serverSocket, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(int)) < 0)
     {
-        perror("setsockopt");
+        perror("clientPerformanceERROR: ERROR:");
         exit(1);
     }
 
     if (bind(serverSocket, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0)
     {
-        perror("bind");
+        perror("clientPerformanceERROR: ERROR:");
         exit(1);
     }
 
     if (listen(serverSocket, 1) < 0)
     {
-        perror("listen");
+        perror("clientPerformanceERROR: ERROR:");
         exit(1);
     }
 
@@ -738,21 +966,20 @@ void serverPerformance(const char *port, bool quiet)
 
             if (bind(serverSocket2, (struct sockaddr *)&server_addr2, sizeof(server_addr2)) < 0)
             {
-                perror("bind");
+                perror("bind clientPerformanceERROR: ERROR:");
                 exit(1);
             }
 
             if (listen(serverSocket2, 1) < 0)
             {
-                perror("listen");
+                perror("listen clientPerformanceERROR: ERROR:");
                 exit(1);
             }
 
             send(clientSocket, "ACK", 3, 0);
 
-            clientSocket2 = accept(serverSocket2, (struct sockaddr *)&client_addr2, (socklen_t *)&clientlen2);
 
-            if (clientSocket2 < 0)
+            if (clientSocket2 = accept(serverSocket2, (struct sockaddr *)&client_addr2, (socklen_t *)&clientlen2)< 0)
             {
                 perror("accept");
                 exit(1);
@@ -774,7 +1001,7 @@ void serverPerformance(const char *port, bool quiet)
 
                 if (bytes < 0)
                 {
-                    perror("recv");
+                    perror("recv clientPerformanceERROR: ERROR:");
                     exit(1);
                 }
 
@@ -795,7 +1022,7 @@ void serverPerformance(const char *port, bool quiet)
 
             if (serverSocket2 < 0)
             {
-                perror("socket");
+                perror("socket filior ");
                 exit(1);
             }
 
@@ -808,13 +1035,13 @@ void serverPerformance(const char *port, bool quiet)
 
             if (setsockopt(serverSocket2, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(int)) < 0)
             {
-                perror("setsockopt");
+                perror("setsockopt clientPerformanceERROR:");
                 exit(1);
             }
 
             if (bind(serverSocket2, (struct sockaddr *)&server_addr2, sizeof(server_addr2)) < 0)
             {
-                perror("bind");
+                perror("bind clientPerformanceERROR:");
                 exit(1);
             }
 
@@ -857,7 +1084,7 @@ void serverPerformance(const char *port, bool quiet)
 
                     if (bytes < 0)
                     {
-                        perror("recvfrom");
+                        perror("recvfrom clientPerformanceERROR:");
                         exit(1);
                     }
 
@@ -879,7 +1106,7 @@ void serverPerformance(const char *port, bool quiet)
 
             if (serverSocket2 < 0)
             {
-                perror("socket");
+                perror("socket clientPerformanceERROR:");
                 exit(1);
             }
 
@@ -892,29 +1119,28 @@ void serverPerformance(const char *port, bool quiet)
 
             if (setsockopt(serverSocket2, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(int)) < 0)
             {
-                perror("setsockopt");
+                perror("setsockopt clientPerformanceERROR:");
                 exit(1);
             }
 
             if (bind(serverSocket2, (struct sockaddr *)&server_addr2, sizeof(server_addr2)) < 0)
             {
-                perror("bind");
+                perror("bind clientPerformanceERROR:");
                 exit(1);
             }
 
             if (listen(serverSocket2, 1) < 0)
             {
-                perror("listen");
+                perror("listen clientPerformanceERROR:");
                 exit(1);
             }
 
             send(clientSocket, "ACK", 3, 0);
 
-            clientSocket2 = accept(serverSocket2, (struct sockaddr *)&client_addr2, (socklen_t *)&clientlen2);
 
-            if (clientSocket2 < 0)
+            if (clientSocket2 = accept(serverSocket2, (struct sockaddr *)&client_addr2, (socklen_t *)&clientlen2) < 0)
             {
-                perror("accept");
+                perror("accept clientPerformanceERROR:");
                 exit(1);
             }
 
@@ -934,7 +1160,7 @@ void serverPerformance(const char *port, bool quiet)
 
                 if (bytes < 0)
                 {
-                    perror("recv");
+                    perror("recv clientPerformanceERROR:");
                     exit(1);
                 }
 
@@ -955,7 +1181,7 @@ void serverPerformance(const char *port, bool quiet)
 
             if (serverSocket2 < 0)
             {
-                perror("socket");
+                perror("socket clientPerformanceERROR:");
                 exit(1);
             }
 
@@ -968,13 +1194,13 @@ void serverPerformance(const char *port, bool quiet)
 
             if (setsockopt(serverSocket2, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(int)) < 0)
             {
-                perror("setsockopt");
+                perror("setsockopt clientPerformanceERROR:");
                 exit(1);
             }
 
             if (bind(serverSocket2, (struct sockaddr *)&server_addr2, sizeof(server_addr2)) < 0)
             {
-                perror("bind");
+                perror("bind clientPerformanceERROR:");
                 exit(1);
             }
 
@@ -1017,7 +1243,7 @@ void serverPerformance(const char *port, bool quiet)
 
                     if (bytes < 0)
                     {
-                        perror("recvfrom");
+                        perror("recvfrom error");
                         exit(1);
                     }
 
@@ -1039,7 +1265,7 @@ void serverPerformance(const char *port, bool quiet)
 
             if (serverSocket2 < 0)
             {
-                perror("socket");
+                perror("socket error");
                 exit(1);
             }
 
@@ -1054,13 +1280,13 @@ void serverPerformance(const char *port, bool quiet)
 
             if (bind(serverSocket2, (struct sockaddr *)&server_addr2, len) < 0)
             {
-                perror("bind");
+                perror("bind error");
                 exit(1);
             }
 
             if (listen(serverSocket2, 1) < 0)
             {
-                perror("listen");
+                perror("listen error");
                 exit(1);
             }
 
@@ -1070,7 +1296,7 @@ void serverPerformance(const char *port, bool quiet)
 
             if (clientSocket2 < 0)
             {
-                perror("accept");
+                perror("accept error");
                 exit(1);
             }
 
@@ -1090,7 +1316,7 @@ void serverPerformance(const char *port, bool quiet)
 
                 if (bytes < 0)
                 {
-                    perror("recv");
+                    perror("recv error");
                     exit(1);
                 }
 
@@ -1110,7 +1336,7 @@ void serverPerformance(const char *port, bool quiet)
 
             if (serverSocket2 < 0)
             {
-                perror("socket");
+                perror("socket error");
                 exit(1);
             }
 
@@ -1126,7 +1352,7 @@ void serverPerformance(const char *port, bool quiet)
 
             if (bind(serverSocket2, (struct sockaddr *)&server_addr2, len) < 0)
             {
-                perror("bind");
+                perror("bind error");
                 exit(1);
             }
 
@@ -1145,7 +1371,7 @@ void serverPerformance(const char *port, bool quiet)
 
                 if (ret < 0)
                 {
-                    perror("poll");
+                    perror("poll error");
                     exit(1);
                 }
 
@@ -1166,7 +1392,7 @@ void serverPerformance(const char *port, bool quiet)
 
                     if (bytes < 0)
                     {
-                        perror("recvfrom");
+                        perror("recvfrom error");
                         exit(1);
                     }
 
@@ -1190,7 +1416,7 @@ void serverPerformance(const char *port, bool quiet)
             int fd = open(param, O_RDONLY);
             if (fd < 0)
             {
-                perror("open");
+                perror("open field");
                 exit(1);
             }
 
@@ -1198,7 +1424,7 @@ void serverPerformance(const char *port, bool quiet)
 
             if (mmap_data == MAP_FAILED)
             {
-                perror("mmap");
+                perror("mmap error");
                 exit(1);
             }
 
@@ -1229,7 +1455,7 @@ void serverPerformance(const char *port, bool quiet)
 
             if (fd < 0)
             {
-                perror("open");
+                perror("open filed");
                 exit(1);
             }
 
@@ -1244,7 +1470,7 @@ void serverPerformance(const char *port, bool quiet)
 
                 if (bytes < 0)
                 {
-                    perror("read");
+                    perror("file to read");
                     exit(1);
                 }
 
