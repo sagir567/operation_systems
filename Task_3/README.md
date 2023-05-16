@@ -32,7 +32,7 @@ This project showcases different aspects of network communication, including cli
 
 ## Installation
 
-1. Clone the repository: `git clone https://github.com/your/repo.git`
+1. Clone the repository: `git clone https://github.com/sagir567/operation_systems.git`
 2. Change to the project directory: `cd project-directory`
 3. Compile the code: `gcc -o stnc stnc.c -lssl -lcrypt`
 4. Run the executable: `./stnc`
